@@ -1,0 +1,6 @@
+Plaintext
+
+
+pyTelegramBotAPI
+pandas
+openpyxl
