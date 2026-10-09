@@ -1,14 +1,30 @@
 import telebot
 import pandas as pd
+import os
+from flask import Flask
+from threading import Thread
+
+# --- DUMMY WEB SERVER UNTUK MENGELUARKAN PORT DI RENDER (FREE TIER) ---
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot Telegram Aktif 24 Jam!"
+
+def run():
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
+# ---------------------------------------------------------------------
 
 TOKEN = '8929131903:AAFo-p8cP7DpBbAE3HiIwIENvdPRsIayPs0'
 bot = telebot.TeleBot(TOKEN)
 
-# Membaca file Excel Anda
-# Sesuaikan nama file jika berbeda
+# Membaca data Excel
 df = pd.read_excel('data_site.xlsx')
-
-# Menghapus spasi berlebih pada nama kolom (jika ada)
 df.columns = df.columns.str.strip()
 
 @bot.message_handler(commands=['start'])
@@ -18,18 +34,13 @@ def send_welcome(message):
 @bot.message_handler(func=lambda message: True)
 def cari_site(message):
     site_id_input = message.text.strip()
-    
-    # Mencari data berdasarkan kolom 'Site ID' di Excel Anda
     hasil = df[df['Site ID'].astype(str).str.upper() == site_id_input.upper()]
     
     if not hasil.empty:
         data = hasil.iloc[0]
-        
-        # Ambil nilai Latitude dan Longitude dari kolom P dan Q
         lat = data.get('Latitude', '')
         long = data.get('Longitude', '')
-
-        # Susun format balasan berdasarkan kolom Excel Anda
+        
         balasan = f"""*DETAIL INFORMASI SITE*
 ============================================
 *INFORMASI UTAMA*
@@ -40,8 +51,6 @@ def cari_site(message):
 • Area CL: {data.get('Area CL', '-')}
 • Alamat: {data.get('Alamat', '-')}
 • Cluster: {data.get('Cluster', '-')}
-• ROH: {data.get('ROH', '-')}
-• VIP / VVIP: {data.get('VIP / VVIP', '-')}
 • Coordinate: {lat}, {long}
 
 *INFRASTRUKTUR & TOWER*
@@ -50,8 +59,6 @@ def cari_site(message):
 • Hub Type: {data.get('Hub Type', '-')}
 • TOCO: {data.get('TOCO', '-')}
 • ID ToCo: {data.get('ID ToCo', '-')}
-• OWS TE: {data.get('OWS TE', '-')}
-• DWS CME: {data.get('DWS CME', '-')}
 
 Link Gmaps:
 https://maps.google.com/?q={lat},{long}"""
@@ -60,5 +67,8 @@ https://maps.google.com/?q={lat},{long}"""
     else:
         bot.reply_to(message, f"❌ Site ID *{site_id_input}* tidak ditemukan.", parse_mode='Markdown')
 
-print("Bot sedang berjalan...")
-bot.polling()
+if __name__ == '__main__':
+    keep_alive()          # Menjalankan server Flask di latar belakang
+    bot.remove_webhook()   # Memastikan tidak ada webhook tersisa
+    print("Bot sedang berjalan di Render...")
+    bot.polling(non_stop=True)
